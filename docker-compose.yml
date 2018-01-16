@@ -1,0 +1,10 @@
+version: "2.0"
+services:
+  recepies:
+    image: auth
+    ports:
+      - "3002:3002"
+    environment:
+      - MONGODB_HOST=172.17.0.1
+      - DATABASE=recepies
+      - SECRET=eEMAr0UrJmyrLvwA2jcd8tPC93NTmE5cWpx9abAkc5quNysKZLwlxPHvOgNO
