@@ -13,7 +13,7 @@ import (
 )
 
 type Scope struct {
-  Service string `json:"srv" bson:"s"`
+  Entity string `json:"ent" bson:"e"`
   Actions []string `json:"act" bson:"a"`
 }
 
@@ -36,9 +36,7 @@ func getSession() *mgo.Session {
 
 func standardClaims() jwt.StandardClaims {
   return jwt.StandardClaims{
-      ExpiresAt: 15000,
       IssuedAt: time.Now().Unix(),
-      Issuer:    "test",
   }
 }
 

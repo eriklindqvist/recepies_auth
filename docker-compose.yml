@@ -1,6 +1,6 @@
 version: "2.0"
 services:
-  recepies:
+  auth:
     image: auth
     ports:
       - "3002:3002"
