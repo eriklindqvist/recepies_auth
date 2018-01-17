@@ -60,7 +60,7 @@ func auth() http.HandlerFunc {
     user := new(User)
 
     if err := c.Find(bson.M{"u": u, "p": p}).One(&user); err != nil {
-      http.Error(w, err.Error(), http.StatusForbidden)
+      http.Error(w, "Unauthorized", http.StatusForbidden)
       return
     }
 
