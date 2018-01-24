@@ -4,7 +4,9 @@ services:
     image: auth
     ports:
       - "3002:3002"
+    volumes:
+      - ./certs/private.rsa:/private.rsa:ro
     environment:
       - MONGODB_HOST=172.17.0.1
       - DATABASE=recepies
-      - SECRET=eEMAr0UrJmyrLvwA2jcd8tPC93NTmE5cWpx9abAkc5quNysKZLwlxPHvOgNO
+      - KEYFILE=/private.rsa

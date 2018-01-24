@@ -3,9 +3,13 @@ package main
 import (
   "os"
   "fmt"
-	"log"
+	"io"
   "time"
 	"net/http"
+  "io/ioutil"
+  "crypto/rsa"
+  "crypto/sha512"
+  "encoding/base64"
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
   jwt "github.com/dgrijalva/jwt-go"
@@ -23,10 +27,30 @@ type User struct {
     jwt.StandardClaims
 }
 
+func stderr(message string) {
+  print(os.Stderr, message)
+}
+
+func stderrf(format string, a ...interface{}) {
+  print(os.Stderr, fmt.Sprintf(format, a))
+}
+
+func stdout(message string) {
+  print(os.Stdout, message)
+}
+
+func stdoutf(format string, a ...interface{}) {
+  print(os.Stdout, fmt.Sprintf(format, a))
+}
+
+func print(w io.Writer, message string) {
+  fmt.Fprintf(w, "%s\n", message)
+}
+
 func getSession() *mgo.Session {
 		host := "mongodb://" + l.Getenv("MONGODB_HOST", "localhost")
     s, err := mgo.Dial(host)
-		log.Printf("host: %s", host)
+		stdoutf("host: %s", host)
     // Check if connection error, is mongo running?
     if err != nil {
         panic(err)
@@ -41,7 +65,23 @@ func standardClaims() jwt.StandardClaims {
 }
 
 func auth() http.HandlerFunc {
+  var (
+    pem []byte
+    privateKey *rsa.PrivateKey
+    err error
+  )
+
   c := getSession().DB(l.Getenv("DATABASE", "recepies")).C("users")
+
+  if pem, err = ioutil.ReadFile(l.Getenv("KEYFILE", "private.rsa")); err != nil {
+    stderr(err.Error())
+    os.Exit(1)
+  }
+
+  if privateKey, err = jwt.ParseRSAPrivateKeyFromPEM(pem); err != nil {
+    stderr(err.Error())
+    os.Exit(1)
+  }
 
   return func(w http.ResponseWriter, r *http.Request) {
     if (r.URL.Path != "/" || r.Method != "POST") {
@@ -50,31 +90,38 @@ func auth() http.HandlerFunc {
     }
 
     if err := r.ParseForm(); err != nil {
-      fmt.Fprintf(w, "ParseForm() err: %v", err)
+      stderrf("ParseForm() err: %v", err)
+      http.Error(w, "Internal Server Error", http.StatusInternalServerError)
       return
     }
 
     u := r.FormValue("username")
     p := r.FormValue("password")
 
+    hash := sha512.Sum512_256([]byte(p))
+    pass := base64.URLEncoding.EncodeToString(hash[:])
+
+    stdout(pass)
+
     user := new(User)
 
-    if err := c.Find(bson.M{"u": u, "p": p}).One(&user); err != nil {
+    if err := c.Find(bson.M{"u": u, "p": pass}).One(&user); err != nil {
       http.Error(w, "Unauthorized", http.StatusForbidden)
       return
     }
 
+    stdoutf("Authorized user: %s", user.Username)
+
     user.StandardClaims = standardClaims()
 
-    token := jwt.NewWithClaims(jwt.SigningMethodHS256, user)
-
-    secret := []byte(os.Getenv("SECRET"))
+    token := jwt.NewWithClaims(jwt.SigningMethodRS512, user)
 
     // Sign and get the complete encoded token as a string using the secret
-    tokenString, err := token.SignedString(secret)
+    tokenString, err := token.SignedString(privateKey)
 
     if err != nil {
-      http.Error(w, err.Error(), http.StatusInternalServerError)
+      stderr(err.Error())
+      http.Error(w, "Internal Server Error", http.StatusInternalServerError)
       return
     }
 
@@ -83,11 +130,9 @@ func auth() http.HandlerFunc {
 }
 
 func main() {
-  port := ":" + l.Getenv("PORT", "3002")
-
-  log.Printf("Server started on %s", port)
+  stdout("Server started")
 
   http.HandleFunc("/", auth())
 
-	log.Fatal(http.ListenAndServe(port, nil))
+	http.ListenAndServe(":3002", nil)
 }
