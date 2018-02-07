@@ -12,7 +12,7 @@ import (
   "gopkg.in/mgo.v2"
   "gopkg.in/mgo.v2/bson"
   jwt "github.com/dgrijalva/jwt-go"
-  l "github.com/eriklindqvist/recepies/app/lib"
+  l "github.com/eriklindqvist/recepies_api/app/lib"
   "github.com/eriklindqvist/recepies_auth/log"
 )
 
